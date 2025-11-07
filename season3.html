@@ -37,13 +37,7 @@
           - Propagation plausibility: if (RT+Q)/impr is too low for your like-rate/reach, we down-weight.
           - Micro-viral/FRR tripwires flag tiny accounts with huge reach jumps.
           - “Impossible” like-rates by reach are capped or disqualified.
-          - Extreme like-only or quote-only patterns with low trust trigger penalties/DQ.
-
-          How your score is computed:
-          - Effective Impressions (EffImpr) = impressions × trust × plausibility (clamped).
-          - Effective Engagement (EffEng_cap): likes, RTs, quotes (quotes>RT>likes), capped by an ER ceiling.
-          - Base = 2·log(1+EffImpr) + EffEng_cap + 0.2·√likes
-          - finalScore = Base × quality multipliers (smart-share, RT/L balance, cadence, plausibility).
+          - Extreme like-only or quote-only patterns with low trust trigger penalties.
 
           Rewards:
           - Top 100 share $50,000 (score^1.25 split) and receive Zama OG NFT.
