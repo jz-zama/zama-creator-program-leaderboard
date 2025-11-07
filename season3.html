@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZAMA Creator Program - Admin Dashboard (Original Style + Vanguard)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    :root { --zama-primary:#ffd208; --zama-black:#000; --zama-dark:#1A1A1A; --zama-grey:#808080; }
+    * { border-radius:0 !important; }
+    body { background:#2e2e2e; color:#fff; font-family:'Telegraf', system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; }
+    @font-face { font-family:'Telegraf'; src: local('Telegraf'), local('Inter'); font-weight:400; }
+    @font-face { font-family:'Telegraf'; src: local('Telegraf'), local('Inter'); font-weight:700; }
+    @font-face { font-family:'Telegraf'; src: local('Telegraf'), local('Inter'); font-weight:900; }
+
+    .bg-zama{ background:var(--zama-primary); } .text-zama{ color:var(--zama-primary);} .border-zama{ border-color:var(--zama-primary); }
+    input[type="file"]::-webkit-file-upload-button{ background:var(--zama-primary); border:none; color:#000; padding:8px 16px; font-weight:700; cursor:pointer; margin-right:8px; font-family:'Telegraf', system-ui, sans-serif; }
+    code, .mono{ font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; }
+    .table-container{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-height:70vh; overflow-y:auto; }
+    table.rankings thead th{ position:sticky; top:0; z-index:10; background:#000; border-bottom:2px solid #374151; box-shadow:0 2px 4px rgba(0,0,0,0.3); }
+    .pill { border:1px solid #374151; padding:4px 8px; font-size:12px; color:#cbd5e1; }
+  </style>
+</head>
+<body>
+<div class="min-h-screen">
+  <!-- Header -->
+  <header class="border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-black">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div>
+        <div class="text-xl sm:text-2xl lg:text-3xl font-black">CREATOR PROGRAM ADMIN</div>
+        <p class="text-gray-500 mt-1 text-sm sm:text-base">GENERATE LEADERBOARD (Vanguard)</p>
+      </div>
+      <div class="text-left sm:text-right">
+        <p class="text-xs sm:text-sm text-gray-500">MONTHLY POOL</p>
+        <p class="text-xl sm:text-2xl font-bold text-zama responsive-text-2xl">$50,000</p>
+        <p class="text-xs text-gray-400 mt-1">Top 100 rewarded</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="p-4 sm:p-6 lg:p-8">
+    <!-- Upload / Admin -->
+    <section class="mb-6 sm:mb-8 bg-zinc-900 border border-gray-800 p-4 sm:p-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <h2 class="font-bold" style="color:white">DATA IMPORT</h2>
+        <div class="flex gap-2 items-center flex-wrap">
+          <span class="pill">Top100 visible: ≥5k followers</span>
+          <span class="pill">ER global ban: >5%</span>
+          <span class="pill">CPM cap: $30</span>
+          <button id="toggleEligibleBtn" class="px-3 py-2 bg-gray-800 border border-gray-700 text-gray-200 text-xs">Toggle: Eligible Top100 First</button>
+          <button id="refreshDataBtn" class="px-3 py-2 bg-zama text-black font-bold hover:bg-white transition-colors text-xs sm:text-sm" style="display:none;">↻ REFRESH DATA</button>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv" class="block w-full text-sm text-gray-400" />
+      <p id="status" class="text-xs text-gray-400 mt-2"></p>
+    </section>
+
+    <!-- Exports -->
+    <section class="mb-6 sm:mb-8 bg-zinc-900 border border-gray-800 p-4 sm:p-6 hidden" id="adminBar">
+      <div class="flex flex-wrap gap-2">
+        <button id="exportFullCsvBtn" class="px-3 py-2 bg-white text-black font-bold text-xs sm:text-sm">EXPORT FULL (CSV)</button>
+        <button id="exportTop100CsvBtn" class="px-3 py-2 bg-zama text-black font-bold text-xs sm:text-sm">EXPORT TOP100 (CSV)</button>
+        <button id="exportFullJsonBtn" class="px-3 py-2 bg-white text-black font-bold text-xs sm:text-sm">EXPORT FULL (JSON)</button>
+        <button id="exportTop100JsonBtn" class="px-3 py-2 bg-zama text-black font-bold text-xs sm:text-sm">EXPORT TOP100 (JSON)</button>
+        <button id="generatePublicBtn" class="px-3 py-2 bg-gray-800 border border-gray-700 text-gray-200 text-xs sm:text-sm">GENERATE PUBLIC PAGE</button>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section id="stats" class="hidden">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-6 sm:mb-8">
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">Total Creators</p>
+          <p class="text-lg sm:text-2xl font-bold responsive-text-2xl" id="totalCreators">0</p>
+        </div>
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">X Posts</p>
+          <p class="text-lg sm:text-2xl font-bold responsive-text-2xl" id="totalPosts">0</p>
+        </div>
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">Impressions</p>
+          <p class="text-lg sm:text-2xl font-bold responsive-text-2xl" id="totalImpressions">0</p>
+          <p class="text-xs text-gray-400 mt-1">Top 100: <span id="top100Impressions">0</span></p>
+        </div>
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">Median Prize (Top100)</p>
+          <p class="text-lg sm:text-2xl font-bold text-zama responsive-text-2xl" id="medianPrize">$0</p>
+        </div>
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">Effective CPM (Top100)</p>
+          <p class="text-lg sm:text-2xl font-bold responsive-text-2xl" id="effectiveCPM">$0</p>
+        </div>
+        <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-4">
+          <p class="text-xs sm:text-sm text-gray-500">Total CPM (All)</p>
+          <p class="text-lg sm:text-2xl font-bold responsive-text-2xl" id="totalCPM">$0</p>
+        </div>
+      </div>
+    </section>
+
+    
+    <!-- Transparency panel -->
+    <section class="mb-6 sm:mb-8 bg-zinc-900 border border-gray-800 p-4 sm:p-6">
+      <details>
+        <summary class="cursor-pointer font-bold text-white flex items-center gap-2"><span class="inline-block w-2 h-2 bg-zama rounded-full"></span>Algorithm Transparency v0.2<span class="text-gray-500 text-xs">(click to expand)</span></summary>
+        <div class="mt-3 text-sm text-gray-300 leading-6">
+          <p class="mb-2">We prioritize anti-gaming and quality. Final scores are computed per creator over the period, then prizes are allocated to the top 100 eligible accounts (≥5k followers) with a $30 CPM cap.</p>
+          <ol class="list-decimal ml-5 space-y-2">
+            <li><b>Floors:</b> Posts ≥ 1, Impressions ≥ 10k, Avg Post Impr ≥ 1k; ER > 5% → ban.</li>
+            <li><b>Sanity:</b> <i>EngFixed</i> = max(Engagements, Likes+RT+Quotes).</li>
+            <li><b>Smart Follower → Impressions cap:</b> < 10 → 30k; < 20 → 50k; < 50 → 100k; < 100 → 200k; < 200 → 350k; else no cap.</li>
+            <li><b>Trust & Effective Impressions:</b> EffImpr = Impr × max(0.45, min(1, Viral × Trust)), where Trust = clamp(SmartFollowerShare / 3%, 0.45..1).</li>
+            <li><b>Propagation by reach:</b> big‑reach baseline = max(0.20%, 0.30 × LikeRate). If (RT+Q)/Impr is below, plausibility is reduced.</li>
+            <li><b>Micro‑viral corroboration (small accounts):</b> If Followers < 5k and Impr ≥ 250k or FRR ≥ 40×, require PropRate ≥ 0.2%, RT/L ≥ 8%, Qshare ≥ 2%, SmartFollowerShare ≥ 1%.</li>
+            <li><b>FRR tripwire:</b> If FRR > 80× and PropRate < 0.08% → ban.</li>
+            <li><b>Like‑rate caps by AvgReach:</b> impossible > 5% (100k+), > 8% (20–100k), > 12% (5–20k), > 20% (2–5k), > 30% (&lt;2k).</li>
+            <li><b>Like‑dominant storms:</b> At ≥ 20k AvgReach, if Likes dominate (&gt;90%) and PropRate &lt; 0.15% → ban.</li>
+            <li><b>Mid‑reach balance (relaxed):</b> If Impr ≥ 20k and Likes ≥ 300, ban only if Prop/Likes &lt; 12% and Quotes/Likes &lt; 0.5% and PropRate &lt; 0.15%, unless strong absolute propagation (RT+Q ≥ 500 or RT ≥ 300 or Q ≥ 300).</li>
+            <li><b>Quote‑dominant anomaly:</b> If Impr ≥ 20k and Quotes ≥ 120 and RT ≤ 2 and low trust and PropRate &lt; 0.5% → ban; also heavy soft penalty when quotes &gt; 60% of (RT+Q) and RT/L &lt; 5%.</li>
+            <li><b>Score:</b> Base = 2·log(1+EffImpr) + EffEng_cap + 0.2·√Likes, where EffEng_cap = min(Likes + 1.8·RT + 2.5·Quotes, EffImpr·ER_cap). Quality multipliers apply (smart‑share, RT/L, cadence, like‑rate, plausibility).</li>
+            <li><b>Eligibility & prizes:</b> Only ≥5k followers can be in visible Top‑100 and share $50k, split ∝ score^1.25 with $30 CPM cap and iterative redistribution.</li>
+          </ol>
+        </div>
+      </details>
+    </section>
+
+    <!-- Leaderboard -->
+    <section id="results" class="hidden">
+      <div class="bg-zinc-900 border border-gray-800">
+        <div class="p-3 sm:p-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div class="font-bold text-sm sm:text-base">TOP 1000 LEADERBOARD
+            <br/><span class="text-xs sm:text-sm text-gray-400">Top 100 share $50,000 and receive the Zama OG NFT</span>
+            <br/><span class="text-xs sm:text-sm text-gray-400">Top 101–1000 receive the Zama OG NFT</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="w-full rankings">
+            <thead class="bg-black">
+              <tr>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500">RANK</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500">CREATOR</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden sm:table-cell">SCORE</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500">PRIZE (USDC)</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden md:table-cell">CPM</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">POSTS</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">SMART FOLLOWERS</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">FOLLOWERS</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden md:table-cell">IMPRESSIONS</th>
+                <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-bold text-gray-500 hidden xl:table-cell">ENGAGEMENT</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ===== state & config =====
+let calculatedResults = [];
+let allCreatorsData = [];
+let currentFile = null;
+const PRIZE_POOL = 50000;
+const ALPHA = 1.25;
+const FLOOR_PER_WINNER = 0;
+let showEligibleFirst = true; // visible Top100 excludes <5k followers
+
+// ===== helpers =====
+function status(msg){ const el=document.getElementById('status'); el.textContent=msg||''; }
+function safeNum(v){ if(v===undefined||v===null||v==='') return 0; const s=String(v).replace(/,/g,'').trim(); const n=parseFloat(s); return isNaN(n)?0:n; }
+function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+function toCSV(rows){
+  if(!rows || !rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const esc = s => { s=String(s).replace(/"/g,'""'); if(/[",\n]/.test(s)) s='"'+s+'"'; return s; };
+  return headers.join(',') + '\\n' + rows.map(r=> headers.map(h=>esc(r[h]===undefined?'':r[h])).join(',')).join('\\n');
+}
+function download(filename, text, mime){
+  const blob=new Blob([text],{type:mime||'text/plain'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+// ===== eligibility / caps =====
+function maxImprAllowedBySmartFollowers(sf){
+  if(sf < 10)   return 30000;
+  if(sf < 20)   return 50000;
+  if(sf < 50)   return 100000;
+  if(sf < 100)  return 200000;
+  if(sf < 200)  return 350000;
+  return Infinity;
+}
+function erCaps(avgReach){
+  if(avgReach>=100000) return {suspect:0.08, impossible:0.10};
+  if(avgReach>=20000)  return {suspect:0.12, impossible:0.20};
+  if(avgReach>=5000)   return {suspect:0.20, impossible:0.30};
+  if(avgReach>=2000)   return {suspect:0.30, impossible:0.40};
+  return {suspect:0.50, impossible:0.60};
+}
+function likeRateCaps(avgReach){
+  if(avgReach>=100000) return {suspect:0.035, impossible:0.050};
+  if(avgReach>=20000)  return {suspect:0.050, impossible:0.080};
+  if(avgReach>=5000)   return {suspect:0.080, impossible:0.120};
+  if(avgReach>=2000)   return {suspect:0.120, impossible:0.200};
+  return {suspect:0.200, impossible:0.300};
+}
+
+// ===== core scoring (Vanguard tuned) =====
+function calculateFinalScore(creator){
+  const Followers = safeNum(creator['Followers']);
+  const SmartFollowers = safeNum(creator['Smart Followers']);
+  const Posts = safeNum(creator['Posts']);
+  const SmartEng = safeNum(creator['Smart Engagement']);
+  const Impr = safeNum(creator['Impressions']);
+  const Eng = safeNum(creator['Engagements']);
+  const Likes = safeNum(creator['Likes']);
+  const RT = safeNum(creator['Retweets']);
+  const Quotes = safeNum(creator['Quotes']);
+  const AvgReach = safeNum(creator['Average Post Impressions']||0);
+
+  const EngFixed = Math.max(Eng, Likes+RT+Quotes);
+  const ER = Impr>0? (EngFixed/Impr) : 0;
+
+  // floors
+  if(Posts < 1) return 0;
+  if(Impr < 10000 || AvgReach < 1000) return 0;
+
+  // global ER>5% ban
+  if(Impr>0 && (EngFixed/Impr) > 0.05) return 0;
+
+  // Smart follower → impressions hard cap
+  const maxImprAllowed = maxImprAllowedBySmartFollowers(SmartFollowers);
+  if(Impr > maxImprAllowed) return 0;
+
+  // core rates
+  const LikeRate = Impr>0 ? (Likes/Impr) : 0;
+  const PropRate = Impr>0 ? ((RT+Quotes)/Impr) : 0;
+  const RTL = Likes>0 ? (RT/Likes) : (RT>0?1:0);
+  const Qshare = EngFixed>0 ? (Quotes/EngFixed) : 0;
+  const SmartShare = EngFixed>0 ? (SmartEng/EngFixed) : 0;
+  const SmartFollowerShare = Followers>0 ? (SmartFollowers/Followers) : 0;
+  const FRR = Followers>0 ? ((AvgReach)/Followers) : (AvgReach>0?999:0);
+
+  // Like-rate impossible cap
+  const lrc = likeRateCaps(AvgReach);
+  if(LikeRate > lrc.impossible) return 0;
+
+  // Big reach plausibility baseline (eased): 0.3 * LikeRate, min 0.2%
+  const bigReach = (Impr>=100000) || (FRR>=30);
+  const propBaseline = bigReach ? Math.max(0.0020, 0.3*LikeRate) : 0.001;
+
+  // Micro-viral corroboration for small accounts
+  if(Followers<5000 && (Impr>=250000 || FRR>=40)){
+    if( PropRate<0.002 || RTL<0.08 || Qshare<0.02 || SmartFollowerShare<0.01 ) return 0;
+  }
+  // FRR x very low propagation
+  if(FRR>80 && PropRate<0.0008) return 0;
+
+  // Like-dominant storm (scale)
+  const LikeShare = EngFixed>0 ? (Likes/EngFixed) : 0;
+  if(AvgReach>=20000 && LikeShare>0.90 && PropRate<0.0015) return 0;
+
+  // Mid-reach relaxed compound rule
+  const PropLikes = (RT+Quotes)/Math.max(1, Likes);
+  const QuotesPerLike = Quotes/Math.max(1, Likes);
+  if(Impr>=20000 && Likes>=300){
+    const strongAbs = (RT+Quotes)>=500 || Quotes>=300 || RT>=300;
+    const passByRate = PropRate>=0.0015;
+    const lowPropLikes = PropLikes<0.12;
+    const lowQuoteLike = QuotesPerLike<0.005;
+    if(!strongAbs && !passByRate && (lowPropLikes && lowQuoteLike)) return 0;
+  }
+
+  // Quote-dominant anomaly (hard DQ)
+  const quoteDominant = (Quotes >= 120) && (RT <= 2);
+  const lowTrustQD = (SmartFollowerShare < 0.015) && (SmartFollowers < 50) && (Followers < 5000);
+  const lowPropQD = (PropRate < 0.005);
+  if(Impr >= 20000 && quoteDominant && lowTrustQD && lowPropQD){ return 0; }
+
+  // ER impossible caps by bucket (guard)
+  const ec = erCaps(AvgReach);
+  if(ER > ec.impossible) return 0;
+
+  // Effective impressions (trust + propagation), with raised floor 0.45
+  const ViralMult = Math.min(1, Math.sqrt((PropRate/0.002)||0) * clamp(RTL/0.10,0.6,1.2) * clamp(Qshare/0.03,0.6,1.2));
+  const TrustMult = clamp(SmartFollowerShare/0.03, 0.45, 1.0);
+  const EffImpr = Impr * Math.max(0.45, Math.min(1, ViralMult*TrustMult));
+
+  // ER cap for effective engagements
+  const SRM = Math.min(1, AvgReach/50000);
+  const ER_cap = 0.01 + 0.04*SRM;
+  const EffEng_raw = Likes + 1.8*RT + 2.5*Quotes;
+  const EffEng_cap = Math.min(EffEng_raw, EffImpr*ER_cap);
+
+  // Quality multipliers & plausibility
+  const SmartShareMult = clamp(SmartShare/0.05, 0.3, 1.1);
+  const Q_pen = 1 - Math.max(0, Qshare-0.15) * 0.8;
+  const RT_pen = 1 - Math.max(0, RTL-0.6) * 0.5;
+  const LikeRateMult = clamp(LikeRate/0.01, 0.6, 1.4);
+  const Cadence = clamp(0.92 + 0.004*Math.min(Posts,20) + 0.04*Math.min(AvgReach/50000,1), 0.92, 1.12);
+
+  const P1 = bigReach ? clamp(30/Math.max(30,FRR), 0.3, 1.0) : 1.0;
+  const P2 = bigReach ? clamp(PropRate/propBaseline, 0.3, 1.0) : 1.0;
+  const P3 = bigReach ? clamp(RTL/0.06, 0.6, 1.0) : 1.0;
+  const P4 = clamp(SmartShare/0.02, 0.6, 1.0);
+  const expectedImpr = Posts*AvgReach;
+  const consistency = Impr>0 ? Math.abs(Impr-expectedImpr)/Impr : 0;
+  const P5 = clamp(1 - Math.max(0, consistency-0.5), 0.6, 1.0);
+  let PlausMult = Math.min(P1,P2) * Math.sqrt(P3*P4) * P5;
+
+  // Suspect ER soft downweight
+  if(ER > ec.suspect){ PlausMult *= clamp(ec.suspect/ER, 0.4, 1.0); }
+  // Like-rate suspect downweight
+  if(LikeRate > lrc.suspect){ PlausMult *= clamp(lrc.suspect/LikeRate, 0.5, 1.0); }
+
+  // Quote-dominance soft penalty
+  const QuoteDominance = (Quotes / Math.max(1, (RT + Quotes)));
+  const QuoteDomStrong = (QuoteDominance > 0.6);
+  const LowRTL = (RTL < 0.05);
+  if(Impr>=20000 && QuoteDomStrong && LowRTL){
+    const qdCore = clamp( (0.75 / Math.max(0.01, RTL)), 1.0, 8.0 );
+    const qdLevel = clamp( (QuoteDominance - 0.6) / 0.4, 0.0, 1.0 );
+    const qdMult = 1.0 / (1.0 + qdCore * qdLevel);
+    const trustRelief = clamp((SmartFollowerShare/0.02), 0.5, 1.0);
+    const propRelief = clamp((PropRate/0.006), 0.5, 1.0);
+    const relief = Math.max(trustRelief, propRelief);
+    PlausMult *= clamp(qdMult * relief, 0.15, 1.0);
+  }
+
+  // Final score (engagement-first; impressions log; likes sqrt bonus)
+  const Base = 2*Math.log(1 + EffImpr) + 1.0*EffEng_cap + 0.2*Math.sqrt(Likes);
+  let score = Base * Q_pen * RT_pen * Cadence * SmartShareMult * LikeRateMult * PlausMult;
+  if(!isFinite(score) || score<0) score = 0;
+  return score;
+}
+
+// ===== prize allocation (eligible winners only: ≥5k followers) =====
+function allocatePrizesTop100(creators, prizePool=PRIZE_POOL, maxCPM=30){
+  // default everyone to 0
+  creators.forEach(c=>{ c.prize=0; c.wasCapped=false; });
+
+  // eligible winners
+  const eligibleWinners = creators.filter(c => (c.followers||0)>=5000).slice(0,100);
+  const n = eligibleWinners.length;
+  const floorTotal = (FLOOR_PER_WINNER||0)*n;
+  const perfPool = Math.max(0, prizePool-floorTotal);
+
+  let weights = eligibleWinners.map(c => Math.pow(Math.max(c.finalScore||0,0), ALPHA));
+  let sum = weights.reduce((s,w)=>s+w,0);
+  if(sum===0){ weights = eligibleWinners.map(c=> Math.max(c.impressions||0,0)); sum = weights.reduce((s,w)=>s+w,0); }
+  if(sum===0){ weights = eligibleWinners.map(()=>1); sum = weights.length; }
+
+  eligibleWinners.forEach((c,i)=>{ c.prize = (FLOOR_PER_WINNER||0) + perfPool*(weights[i]/sum); });
+
+  function applyCap(){
+    let excess=0;
+    eligibleWinners.forEach(c=>{
+      const cap = (c.impressions/1000)*maxCPM;
+      if(c.prize>cap){ excess += (c.prize-cap); c.prize=cap; c.wasCapped=true; }
+    });
+    return excess;
+  }
+  let excess = applyCap(), guard=0;
+  while(excess>1e-6 && guard<1000){
+    const idx = eligibleWinners.map((c,i)=>({c,i})).filter(x=>!x.c.wasCapped).map(x=>x.i);
+    if(idx.length===0) break;
+    const wsum = idx.reduce((s,i)=> s+weights[i], 0)||1;
+    idx.forEach(i=>{ eligibleWinners[i].prize += excess*(weights[i]/wsum); });
+    excess = applyCap(); guard++;
+  }
+}
+
+// ===== wiring =====
+document.getElementById('fileInput').addEventListener('change', (e)=>{
+  const f=e.target.files[0]; if(!f){ status('No file selected'); return; }
+  currentFile=f; document.getElementById('adminBar').classList.remove('hidden'); document.getElementById('refreshDataBtn').style.display='inline-block';
+  status('Reading '+f.name+' ...');
+  Papa.parse(f,{header:true,dynamicTyping:true,skipEmptyLines:true,complete:r=>processData(r.data||[])});
+});
+document.getElementById('refreshDataBtn').addEventListener('click', ()=>{
+  if(!currentFile){ status('No file to refresh'); return; }
+  status('Re-reading '+currentFile.name+' ...');
+  Papa.parse(currentFile,{header:true,dynamicTyping:true,skipEmptyLines:true,complete:r=>processData(r.data||[])});
+});
+document.getElementById('toggleEligibleBtn').addEventListener('click', ()=>{ showEligibleFirst=!showEligibleFirst; render(); });
+
+// exports
+document.getElementById('exportFullCsvBtn').addEventListener('click', ()=>{
+  const display = buildDisplayOrder();
+  const rows = display.map(c => ({
+    Rank: c.visibleRank || c.rank,
+    Username: '@'+(c.username||''),
+    Display: c.displayName||'',
+    Posts: c.posts, Followers: c.followers, SmartFollowers: c.smartFollowers,
+    Impressions: c.impressions, Likes: c.likes, Retweets: c.retweets, Quotes: c.quotes,
+    ER: (c.engagementRate||0).toFixed(4),
+    Score: (c.finalScore||0).toFixed(4),
+    Prize: (c.visibleRank||c.rank)<=100 && (c.followers||0)>=5000 ? (c.prize||0).toFixed(2) : '',
+    CPM: (c.visibleRank||c.rank)<=100 && (c.followers||0)>=5000 ? ((c.prize/((c.impressions/1000)||1))||0).toFixed(2) : '',
+    Eligible: ((c.followers||0)>=5000)?'yes':'no'
+  }));
+  download('leaderboard_full.csv', toCSV(rows), 'text/csv;charset=utf-8');
+});
+document.getElementById('exportTop100CsvBtn').addEventListener('click', ()=>{
+  const display = buildDisplayOrder().filter(c => (c.followers||0)>=5000 && c.visibleRank<=100);
+  const rows = display.map(c => ({
+    Rank: c.visibleRank, Username:'@'+c.username, Display:c.displayName,
+    Prize:c.prize.toFixed(2), CPM: ((c.prize/((c.impressions/1000)||1))||0).toFixed(2),
+    Impressions:c.impressions, Score:c.finalScore.toFixed(2)
+  }));
+  download('leaderboard_top100.csv', toCSV(rows), 'text/csv;charset=utf-8');
+});
+document.getElementById('exportFullJsonBtn').addEventListener('click', ()=>{
+  const display = buildDisplayOrder(); download('leaderboard_full.json', JSON.stringify(display,null,2), 'application/json');
+});
+document.getElementById('exportTop100JsonBtn').addEventListener('click', ()=>{
+  const display = buildDisplayOrder().filter(c => (c.followers||0)>=5000 && c.visibleRank<=100);
+  download('leaderboard_top100.json', JSON.stringify(display,null,2), 'application/json');
+});
+document.getElementById('generatePublicBtn').addEventListener('click', generatePublicPage);
+
+// ===== processing & render =====
+function processData(data){
+  try{
+    const valid = (data||[]).map(row=>normalizeRow(row)).filter(row => safeNum(row['Impressions'])>=0);
+    allCreatorsData = valid;
+
+    // compute score
+    const scored = valid.map(c => ({...c, finalScore: calculateFinalScore(c)})).sort((a,b)=> (b.finalScore||0)-(a.finalScore||0));
+
+    // leaderboard eligibility: at least 1 post (we already enforce ≥1 as floor in score), keep top 1000
+    const eligible = scored.filter(c => (safeNum(c['Posts'])>=1) && (safeNum(c['Smart Followers'])>0));
+    const top1000 = eligible.slice(0,1000);
+
+    const creators = top1000.map((c,idx)=> ({
+      rank: idx+1,
+      url: c['URL']||'',
+      username: c['KOL Username']||'',
+      displayName: c['KOL Display Name']||'',
+      finalScore: +(c.finalScore||0),
+      posts: safeNum(c['Posts']||0),
+      smartFollowers: safeNum(c['Smart Followers']||0),
+      followers: safeNum(c['Followers']||0),
+      impressions: safeNum(c['Impressions']||0),
+      likes: safeNum(c['Likes']||0),
+      retweets: safeNum(c['Retweets']||0),
+      quotes: safeNum(c['Quotes']||0),
+      engagementRate: safeNum(c['Engagement Rate %']||0),
+      engagements: safeNum(c['Engagements']||0),
+      avgReach: safeNum(c['Average Post Impressions']||0)
+    }));
+
+    // allocate prizes only to eligible ≥5k and in visible Top100
+    allocatePrizesTop100(creators, PRIZE_POOL, 30);
+
+    calculatedResults = creators;
+    document.getElementById('stats').classList.remove('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    render();
+  }catch(err){
+    console.error(err); status('Error: '+(err&&err.message||err));
+  }
+}
+
+function normalizeRow(row){
+  const out = {}; for(const k in row){ if(Object.prototype.hasOwnProperty.call(row,k)){ out[(k||'').trim()] = row[k]; } }
+  return out;
+}
+
+function buildDisplayOrder(){
+  if(!showEligibleFirst){
+    const arr = calculatedResults.map((c,i)=>{ c.visibleRank=i+1; return c; });
+    return arr;
+  }
+  const eligible = calculatedResults.filter(c => (c.followers||0)>=5000);
+  const topEligible100 = eligible.slice(0,100);
+  const idsTop = new Set(topEligible100.map(c => c.username+'|'+c.impressions));
+  const rest = calculatedResults.filter(c => !idsTop.has(c.username+'|'+c.impressions));
+  const display = topEligible100.concat(rest);
+  for(let i=0;i<display.length;i++){ display[i].visibleRank=i+1; }
+  return display;
+}
+
+function render(){
+  // stats
+  const totalPosts = allCreatorsData.reduce((s,c)=> s + safeNum(c['Posts']||0), 0);
+  const allImpr = allCreatorsData.reduce((s,c)=> s + safeNum(c['Impressions']||0), 0);
+  const display = buildDisplayOrder();
+  const top100Impr = display.slice(0,100).reduce((s,c)=> s + (c.impressions||0), 0);
+  const top100 = display.slice(0,100);
+  const sortedByPrize = [...top100].sort((a,b)=> (a.prize||0)-(b.prize||0));
+  const medianPrize = sortedByPrize.length>=50 ? (sortedByPrize[49].prize||0) : ((sortedByPrize[Math.floor(sortedByPrize.length/2)]?.prize)||0);
+  const top100CPM = (PRIZE_POOL / (top100Impr/1000 || 1)).toFixed(2);
+  const totalCPM = (PRIZE_POOL / (allImpr/1000 || 1)).toFixed(2);
+
+  document.getElementById('totalCreators').textContent = allCreatorsData.length.toLocaleString();
+  document.getElementById('totalPosts').textContent = totalPosts.toLocaleString();
+  document.getElementById('totalImpressions').textContent = allImpr.toLocaleString();
+  document.getElementById('top100Impressions').textContent = top100Impr.toLocaleString();
+  document.getElementById('medianPrize').textContent = '$' + (medianPrize||0).toFixed(2);
+  document.getElementById('effectiveCPM').textContent = '$' + top100CPM;
+  document.getElementById('totalCPM').textContent = '$' + totalCPM;
+
+  // table
+  const tbody = document.getElementById('leaderboardBody'); tbody.innerHTML='';
+  display.forEach(c => {
+    const tr=document.createElement('tr'); tr.className='border-b border-gray-800';
+    const rankBadge = (c.visibleRank<=3) ? 'bg-zama text-black' : (c.visibleRank<=10) ? 'bg-gray-300 text-black' : (c.visibleRank<=25) ? 'bg-gray-500 text-white' : '';
+    const cpm = (c.visibleRank<=100 && (c.followers||0)>=5000) ? ((c.prize/((c.impressions/1000)||1))||0).toFixed(2) : '-';
+    const prizeCell = (c.visibleRank<=100 && (c.followers||0)>=5000)
+      ? `<td class="px-2 sm:px-4 py-2 sm:py-3 font-bold ${c.wasCapped ? 'text-orange-400':'text-zama'}">${(c.prize||0).toFixed(2)} ${c.wasCapped?'<span class="text-xs ml-1" title="Capped at $30 CPM">⚠️</span>':''}</td>`
+      : `<td class="px-2 sm:px-4 py-2 sm:py-3 ${c.visibleRank<=1000?'text-orange-400 font-semibold':'text-gray-600'}">${c.visibleRank<=1000?'ZAMA OG NFT':'-'}</td>`;
+    const cpmCell = (c.visibleRank<=100 && (c.followers||0)>=5000) ? `<td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 hidden md:table-cell">${cpm}</td>` : `<td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-600 hidden md:table-cell">-</td>`;
+
+    tr.innerHTML = `
+      <td class="px-2 sm:px-4 py-2 sm:py-3">${c.visibleRank<=25?`<span class="inline-block w-5 h-5 text-center leading-5 font-bold text-xs ${rankBadge}">${c.visibleRank}</span>`:`<span class="${c.visibleRank>100?'text-gray-500':'text-gray-400'}">${c.visibleRank}</span>`}</td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3">
+        <div>
+          <div class="font-bold text-sm sm:text-base"><a class="hover:text-zama transition-colors" target="_blank" rel="noopener noreferrer" href="${c.url||('https://x.com/'+(c.username||''))}">@${c.username||''}<span class="text-gray-500 ml-1 hidden sm:inline">↗</span></a></div>
+          <div class="text-xs text-gray-500 hidden sm:block">${c.displayName||''}</div>
+        </div>
+      </td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell">${(c.finalScore||0).toFixed(0)}</td>
+      ${prizeCell}
+      ${cpmCell}
+      <td class="px-2 sm:px-4 py-2 sm:py-3 hidden lg:table-cell">${c.posts}</td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 hidden lg:table-cell">${(c.smartFollowers||0).toLocaleString()}</td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 hidden lg:table-cell">${(c.followers||0).toLocaleString()}</td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 hidden md:table-cell">${(c.impressions||0).toLocaleString()}</td>
+      <td class="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 hidden xl:table-cell">${(c.engagementRate||0).toFixed(2)}%</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function generatePublicPage(){
+  const display = buildDisplayOrder();
+  const totalPosts = allCreatorsData.reduce((s,c)=> s + safeNum(c['Posts']||0), 0);
+  const allImpr = allCreatorsData.reduce((s,c)=> s + safeNum(c['Impressions']||0), 0);
+  const top100Impr = display.slice(0,100).reduce((s,c)=> s + (c.impressions||0), 0);
+  const top100 = display.slice(0,100);
+  const highestPrize = top100.reduce((m,c)=> Math.max(m, c.prize||0), 0);
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZAMA Creator Program Rankings</title><script src="https://cdn.tailwindcss.com"><\/script>
+  <style>
+  :root{--zama-primary:#ffd208;--zama-black:#000} *{border-radius:0!important}
+  body{background:#2e2e2e;color:#fff;font-family:'Telegraf',system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif}
+  .bg-zama{background:var(--zama-primary)} .text-zama{color:var(--zama-primary)} .table-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.rankings thead th{position:sticky;top:0;z-index:10;background:#000;border-bottom:2px solid #374151;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+  </style></head><body><div class="min-h-screen"><main class="p-0 w-full">
+  <section class="mb-6 sm:mb-8">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+      <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-6"><p class="text-xs text-gray-500">TOTAL CREATORS</p><p class="text-sm font-bold">${allCreatorsData.length.toLocaleString()}</p></div>
+      <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-6"><p class="text-xs text-gray-500">TOTAL X POSTS</p><p class="text-sm font-bold">${totalPosts.toLocaleString()}</p></div>
+      <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-6"><p class="text-xs text-gray-500">IMPRESSIONS</p><p class="text-sm font-bold">${allImpr.toLocaleString()}</p><p class="text-xs text-gray-400 mt-1">Top 100: ${top100Impr.toLocaleString()}</p></div>
+      <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-6"><p class="text-xs text-gray-500">MONTHLY POOL</p><p class="text-sm font-bold text-zama">$50,000</p></div>
+      <div class="bg-zinc-900 border border-gray-800 p-3 sm:p-6"><p class="text-xs text-gray-500">HIGHEST PRIZE</p><p class="text-sm font-bold text-zama">$${highestPrize.toFixed(2)}</p></div>
+    </div>
+  </section>
+
+  <!-- Transparency panel -->
+    <section class="mb-6 sm:mb-8 bg-zinc-900 border border-gray-800 p-4 sm:p-6">
+      <details>
+        <summary class="cursor-pointer font-bold text-white flex items-center gap-2"><span class="inline-block w-2 h-2 bg-zama rounded-full"></span>Algorithm Transparency v0.2<span class="text-gray-500 text-xs">(click to expand)</span></summary>
+        <div class="mt-3 text-sm text-gray-300 leading-6 whitespace-pre-line">
+          We look at:
+          - Quality followers & trust (smart-follower share).
+          - Effective reach (impressions scaled by trust & plausibility).
+          - Propagation (reposts & quotes > likes).
+          - Engagement sanity (healthy ratios > spammy spikes).
+          - Consistent cadence (small, bounded boost).
+
+          Eligibility:
+          - ≥5,000 followers.
+          - ≥1 post, ≥10,000 impressions total, ≥1,000 avg impressions/post.
+          - If period ER% > 5% → disqualified.
+
+          Anti-gaming (summary):
+          - Trust-based impression caps to curb botted/low-quality audiences.
+          - Propagation plausibility: if (RT+Q)/impr is too low for your like-rate/reach, we down-weight.
+          - Micro-viral/FRR tripwires flag tiny accounts with huge reach jumps.
+          - “Impossible” like-rates by reach are capped or disqualified.
+          - Extreme like-only or quote-only patterns with low trust trigger penalties/DQ.
+
+          How your score is computed:
+          - Effective Impressions (EffImpr) = impressions × trust × plausibility (clamped).
+          - Effective Engagement (EffEng_cap): likes, RTs, quotes (quotes>RT>likes), capped by an ER ceiling.
+          - Base = 2·log(1+EffImpr) + EffEng_cap + 0.2·√likes
+          - finalScore = Base × quality multipliers (smart-share, RT/L balance, cadence, plausibility).
+
+          Rewards:
+          - Top 100 share $50,000 (score^1.25 split) and receive Zama OG NFT.
+          - $30 CPM cap; excess is redistributed to uncapped winners.
+          - Ranks 101-1000 receive Zama OG NFT.
+          
+        </div>
+      </details>
+    </section>
+
+  <section><div class="bg-zinc-900 border border-gray-800"><div class="table-container">
+  <table class="w-full rankings"><thead class="bg-black"><tr>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500">RANK</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500">CREATOR</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden sm:table-cell">SCORE</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500">PRIZE (USDC)</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden md:table-cell">CPM</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">POSTS</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">SMART FOLLOWERS</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden lg:table-cell">FOLLOWERS</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden md:table-cell">IMPRESSIONS</th>
+    <th class="px-2 py-2 text-left text-xs font-bold text-gray-500 hidden xl:table-cell">ENGAGEMENT</th>
+  </tr></thead><tbody>
+  ${display.map(c=>{
+    const rankBadge = (c.visibleRank<=3)?'bg-zama text-black':(c.visibleRank<=10)?'bg-gray-300 text-black':(c.visibleRank<=25)?'bg-gray-500 text-white':'';
+    const cpm = (c.visibleRank<=100 && (c.followers||0)>=5000) ? ((c.prize/((c.impressions/1000)||1))||0).toFixed(2) : '-';
+    const prizeCell = (c.visibleRank<=100 && (c.followers||0)>=5000)
+      ? `<td class="px-2 py-2 font-bold ${c.wasCapped ? 'text-orange-400':'text-zama'}">${(c.prize||0).toFixed(2)} ${c.wasCapped?'<span class="text-xs ml-1" title="Capped at $30 CPM">⚠️</span>':''}</td>`
+      : `<td class="px-2 py-2 ${c.visibleRank<=1000?'text-orange-400 font-semibold':'text-gray-600'}">${c.visibleRank<=1000?'ZAMA OG NFT':'-'}</td>`;
+    const cpmCell = (c.visibleRank<=100 && (c.followers||0)>=5000) ? `<td class="px-2 py-2 text-gray-400 hidden md:table-cell">${cpm}</td>` : `<td class="px-2 py-2 text-gray-600 hidden md:table-cell">-</td>`;
+    return `<tr class="border-b border-gray-800">
+      <td class="px-2 py-2">${c.visibleRank<=25?`<span class="inline-block w-5 h-5 text-center leading-5 font-bold text-xs ${rankBadge}">${c.visibleRank}</span>`:`<span class="${c.visibleRank>100?'text-gray-500':'text-gray-400'}">${c.visibleRank}</span>`}</td>
+      <td class="px-2 py-2"><div><div class="font-bold text-sm"><a class="hover:text-zama" target="_blank" rel="noopener noreferrer" href="${c.url||('https://x.com/'+(c.username||''))}">@${c.username||''}<span class="text-gray-500 ml-1 hidden sm:inline">↗</span></a></div><div class="text-xs text-gray-500 hidden sm:block">${c.displayName||''}</div></div></td>
+      <td class="px-2 py-2 hidden sm:table-cell">${(c.finalScore||0).toFixed(0)}</td>
+      ${prizeCell}
+      ${cpmCell}
+      <td class="px-2 py-2 hidden lg:table-cell">${c.posts}</td>
+      <td class="px-2 py-2 text-gray-400 hidden lg:table-cell">${(c.smartFollowers||0).toLocaleString()}</td>
+      <td class="px-2 py-2 text-gray-400 hidden lg:table-cell">${(c.followers||0).toLocaleString()}</td>
+      <td class="px-2 py-2 text-gray-400 hidden md:table-cell">${(c.impressions||0).toLocaleString()}</td>
+      <td class="px-2 py-2 text-gray-400 hidden xl:table-cell">${(c.engagementRate||0).toFixed(2)}%</td>
+    </tr>`}).join('')}
+  </tbody></table></div></div></section>
+  <footer class="mt-8 sm:mt-16 text-center text-gray-500 px-4"><p class="mt-2 text-sm">POWERED BY COOKIE3 ANALYTICS & ZAMA CREATOR PROGRAM</p></footer>
+  </main></div></body></html>`;
+
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='zama-rankings-public.html'; a.click(); URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
